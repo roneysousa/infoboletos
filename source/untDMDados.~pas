@@ -212,7 +212,6 @@ type
     ZQryCReceberidveiculo: TIntegerField;
     ZQryCRecebercliente: TIntegerField;
     ZQryCReceberplaca: TStringField;
-    ZQryBoletoplaca: TStringField;
     ZQryVeiculoplaca: TStringField;
     ZQryVeiculoid: TIntegerField;
     ZQryVeiculocontrato_id: TIntegerField;
@@ -324,6 +323,7 @@ type
     cdsListaGruposgru_descricao: TStringField;
     cdsListaEmailsCDS_ENVIADO: TBooleanField;
     rvBoletoCarneIndividual: TRvProject;
+    cdsListaEmailsCDS_MSG_ERRO: TStringField;
     procedure ZConexaoBeforeConnect(Sender: TObject);
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
@@ -378,6 +378,8 @@ type
     Procedure CarregarComboContasBancaria(aCmb : TComboBox);
     Function AbrirGrupos(): Boolean;
     Function AddGrupoLista(aCodigo, aDescricao : String): Boolean;
+    // Function VerificaSomenteEmailCliente(idCliente : Integer): Boolean;
+    Function VerificaSomenteEmailCliente(idContasReceber : Integer): Boolean;
   end;
 
 var
@@ -2619,7 +2621,9 @@ begin
        ParamByName('pID').AsInteger := idContaReceber;
        Open;
        if not (IsEmpty) Then
-          result := FieldByName('banco').AsInteger;
+           result := FieldByName('banco').AsInteger
+       Else
+           result := 1;
    finally
       free;
    end;
@@ -3290,6 +3294,33 @@ begin
           //
           Result := True;
      End;
+end;
+
+function TdmDados.VerificaSomenteEmailCliente(idContasReceber: Integer): Boolean;
+var qraux : TZquery;
+    texto : string;
+begin
+  Result := False;
+  //texto  := 'select id, email, somente_email from clientes where id = :pid ';
+  texto  := 'Select cr.id, cr.veiculo_id, v.cliente_id, cl.somente_email from contas_receber cr ';
+  texto  := texto + 'inner join veiculos v on cr.veiculo_id = v.id ';
+  texto  := texto + 'inner join clientes cl on v.cliente_id = cl.id ';
+  texto  := texto + 'where (cr.id = :pid)  ';
+  //
+  QrAux := TZquery.Create(nil);
+  with QrAux do
+   try
+       Connection := ZConexao;
+       sql.Add(texto);
+       Params.ParamByName('pid').AsInteger := idContasReceber;
+       Open;
+       //
+       If not (IsEmpty) Then
+         if (FieldByname('somente_email').AsBoolean) Then
+             Result := True;
+   finally
+      free;
+   end;
 end;
 
 end.

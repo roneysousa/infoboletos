@@ -187,7 +187,8 @@ object FrmMainBoletos: TFrmMainBoletos
       ItemIndex = 1
       Items.Strings = (
         'Retrato'
-        'Paisagem')
+        'Paisagem'
+        'Individual')
       TabOrder = 6
     end
     object cmbContaBancaria: TComboBox

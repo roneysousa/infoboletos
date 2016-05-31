@@ -27946,24 +27946,33 @@ object dmDados: TdmDados
     Left = 552
     Top = 432
     Data = {
-      900000009619E0BD01000000180000000400000000000300000090000E434453
+      B10000009619E0BD010000001800000005000000000003000000B1000E434453
       5F4944524547495354524F0400010000000000114344535F454D41494C5F434C
       49454E54450100490000000100055749445448020002007800104344535F4E4F
       4D455F4152515549564F01004900000001000557494454480200020078000B43
-      44535F454E564941444F02000300000000000000}
+      44535F454E564941444F02000300000000000C4344535F4D53475F4552524F01
+      0049000000010005574944544802000200F0000000}
     object cdsListaEmailsCDS_IDREGISTRO: TIntegerField
       FieldName = 'CDS_IDREGISTRO'
     end
     object cdsListaEmailsCDS_EMAIL_CLIENTE: TStringField
+      DisplayLabel = 'E-mail'
       FieldName = 'CDS_EMAIL_CLIENTE'
       Size = 120
     end
     object cdsListaEmailsCDS_NOME_ARQUIVO: TStringField
+      DisplayLabel = 'Arquivo'
       FieldName = 'CDS_NOME_ARQUIVO'
       Size = 120
     end
     object cdsListaEmailsCDS_ENVIADO: TBooleanField
+      DisplayLabel = 'Status'
       FieldName = 'CDS_ENVIADO'
+    end
+    object cdsListaEmailsCDS_MSG_ERRO: TStringField
+      DisplayLabel = 'Mensagem Erro'
+      FieldName = 'CDS_MSG_ERRO'
+      Size = 240
     end
   end
   object cdsConfigEmail: TClientDataSet

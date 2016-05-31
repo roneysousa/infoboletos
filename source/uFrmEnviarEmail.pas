@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, Menus, ACBrMail, types, ACBrBase, StdCtrls, ComCtrls, ExtCtrls,
-  Buttons, DB, Grids, DBGrids;
+  Buttons, DB, Grids, DBGrids, ImgList;
 
 type
   TFrmEnviarEmail = class(TForm)
@@ -41,6 +41,11 @@ type
     lblMensagem: TLabel;
     DBGrid1: TDBGrid;
     dsListaEmails: TDataSource;
+    ImageList1: TImageList;
+    edtFileAnexo: TEdit;
+    Label8: TLabel;
+    SpeedButton1: TSpeedButton;
+    OpenDialog1: TOpenDialog;
     procedure Fechar1Click(Sender: TObject);
     procedure btnEnviarClick(Sender: TObject);
     // procedure ACBrMail1MailProcess(const aStatus: TMailStatus);
@@ -49,11 +54,18 @@ type
     procedure Configuraes1Click(Sender: TObject);
     procedure btnCancelarClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure DBGrid1DrawColumnCell(Sender: TObject; const Rect: TRect;
+      DataCol: Integer; Column: TColumn; State: TGridDrawState);
+    procedure SpeedButton1Click(Sender: TObject);
   private
     { Private declarations }
     Procedure CarregarDados();
     function ValidarEMail(aStr: string): Boolean;
     Procedure EnviarEmail();
+    Function EnviarEmailCliente(): Boolean;
+    Procedure LogErroEnvio(aCds : TDataset);
+    Procedure CriaLog(TextLog: String);
+    Procedure CriaListaEnviados(aNomeFile, TextLog: String);
   public
     { Public declarations }
   end;
@@ -61,10 +73,11 @@ type
 var
   FrmEnviarEmail: TFrmEnviarEmail;
   bCancelar : Boolean;
+  aNameFileOK, aNameFileErro :String; 
 
 implementation
 
-uses untDMDados, uFrmConfigEmail, uFuncoes;
+uses untDMDados, uFrmConfigEmail, uFuncoes, untMenu;
 
 {$R *.dfm}
 
@@ -74,6 +87,8 @@ begin
 end;
 
 procedure TFrmEnviarEmail.btnEnviarClick(Sender: TObject);
+Var
+   bErro : Boolean;
 begin
      if ufuncoes.Empty(edtSMTP.Text) then
      begin
@@ -117,6 +132,18 @@ begin
      //
      if not (dsListaEmails.DataSet.IsEmpty) Then
      begin
+          bErro := False;
+          if FileExists('log_email.txt') Then
+              DeleteFile('log_email.txt');
+          //
+          aNameFileOK   := 'envio_OK_'+uFuncoes.RemoveChar(DatetoStr(date))+'_'+uFuncoes.RemoveChar(Timetostr(time()))+'.txt';
+          aNameFileErro := 'envio_Erro_'+uFuncoes.RemoveChar(DatetoStr(date))+'_'+uFuncoes.RemoveChar(Timetostr(time()))+'.txt';
+
+          if FileExists(aNameFileOK) Then
+             DeleteFile(aNameFileOK);
+          if FileExists(aNameFileErro) Then
+             DeleteFile(aNameFileErro);
+          //
           With dsListaEmails.DataSet do
           begin
                First;
@@ -126,10 +153,16 @@ begin
                     begin
                        if (ValidarEMail(FieldByName('CDS_EMAIL_CLIENTE').AsString)) Then
                         begin
-                            EnviarEmail();
+                            //EnviarEmail();
                             //
-                            Edit;
-                            FieldByName('CDS_ENVIADO').AsBoolean := True;
+                            if (EnviarEmailCliente()) then
+                            begin
+                                 Edit;
+                                 FieldByName('CDS_ENVIADO').AsBoolean := True;
+                                 Post;
+                            End
+                            Else
+                                bErro := True;
                             //
                             Sleep(10);
                        End;
@@ -142,9 +175,13 @@ begin
                     dsListaEmails.DataSet.Next;
                End;  // While not (Eof) do
                //
+               LogErroEnvio(dsListaEmails.DataSet);
+               //
                Application.ProcessMessages;
-               Application.MessageBox('Email(s) enviado(s) com sucesso.',
-                 'Concluído', MB_OK + MB_ICONINFORMATION+ MB_APPLMODAL );
+               If not (bErro) Then
+                    Application.MessageBox('Email(s) enviado(s) com sucesso.', 'Concluído', MB_OK + MB_ICONINFORMATION+ MB_APPLMODAL )
+               Else
+                    Application.MessageBox(Pchar('Enviou concluído, mas com erros!!!'), 'Concluído', MB_OK + MB_ICONWARNING+ MB_APPLMODAL );
           End;  // With dsListaEmails.DataSet do
           //
           Close;
@@ -271,10 +308,16 @@ end;
 
 procedure TFrmEnviarEmail.FormShow(Sender: TObject);
 begin
+     DBGrid1.Visible := false;
      //
      btnCancelar.Visible := false;
      //
      CarregarDados;
+     //
+     dsListaEmails.DataSet.First;
+     //
+     if (StrtoInt(untMenu.aCodUsuario) = 0) or (StrtoInt(untMenu.aCodUsuario) = 1) Then
+        DBGrid1.Visible := True;
 end;
 
 procedure TFrmEnviarEmail.EnviarEmail;
@@ -313,7 +356,8 @@ begin
         ACBrMail1.Subject := edtAssunto.Text;  // assunto
         ACBrMail1.IsHTML  := False; // define que a mensagem é html
         // mensagem principal do e-mail. pode ser html ou texto puro
-        ACBrMail1.Body.Text  := mmoEmail.Lines.Text;
+        ACBrMail1.AltBody.Assign( mmoEmail.Lines );
+        // ACBrMail1.Body.Text  := mmoEmail.Lines.Text;
         if FileExists(aArquivoAnexo) Then
             ACBrMail1.AddAttachment(aArquivoAnexo,'');
         //
@@ -323,7 +367,152 @@ begin
           ACBrMail1.Free;
           btnEnviar.Enabled := True;
      End;
-     Application.ProcessMessages;   
+     Application.ProcessMessages;
+end;
+
+function TFrmEnviarEmail.EnviarEmailCliente: Boolean;
+Var
+    ACBrMail1 : TACBrMail;
+    aPastaAnexo, aArquivoAnexo : String;
+begin
+     Result := False;
+     aPastaAnexo   := ExtractFilePath(Application.ExeName)+'PDF\';
+     aArquivoAnexo := aPastaAnexo+dsListaEmails.DataSet.FieldByName('CDS_NOME_ARQUIVO').AsString;
+     ProgressBar1.Position := 1;
+     Sleep(500);
+     ACBrMail1 := TACBrMail.Create(nil);
+     btnEnviar.Enabled := False;
+     Application.ProcessMessages;
+     Try
+        ACBrMail1.OnMailProcess := ACBrMail1MailProcess;
+        ACBrMail1.From     := dmDados.cdsConfigEmailLOGIN.AsString;    // 'one.supersonic2@gmail.com';
+        ACBrMail1.FromName := dmDados.cdsConfigEmailNOME_DE.AsString;  // 'one.supersonic2@gmail.com';
+        ACBrMail1.Host     := dmDados.cdsConfigEmailSMTP.AsString;     // 'smtp.gmail.com'; // troque pelo seu servidor smtp
+        ACBrMail1.Username := dmDados.cdsConfigEmailLOGIN.AsString;    // 'one.supersonic2@gmail.com';
+        ACBrMail1.Password := edtSenha.Text;    // edtSenha.Text;
+        ACBrMail1.Port     := dmDados.cdsConfigEmailPORTA.AsString;   // troque pela porta do seu servidor smtp
+        If (cbkSSL.Checked) Then
+            ACBrMail1.SetSSL   := True
+        Else
+            ACBrMail1.SetSSL   := False;
+        If (cbkTSL.Checked) Then
+            ACBrMail1.SetTLS   := True
+        Else
+            ACBrMail1.SetTLS   := False;
+        //
+        ACBrMail1.AddAddress(UpperCase(dsListaEmails.DataSet.FieldByName('CDS_EMAIL_CLIENTE').AsString),dsListaEmails.DataSet.FieldByName('CDS_EMAIL_CLIENTE').AsString);
+        //ACBrMail1.AddCC('roneynte@bol.com.br'); // opcional
+        // ACBrMail1.AddReplyTo('um_email'); // opcional
+        // ACBrMail1.AddBCC('um_email'); // opcional
+        ACBrMail1.Subject := edtAssunto.Text;  // assunto
+        ACBrMail1.IsHTML  := False; // define que a mensagem é html
+        // mensagem principal do e-mail. pode ser html ou texto puro
+        ACBrMail1.AltBody.Assign( mmoEmail.Lines );
+        // ACBrMail1.Body.Text  := mmoEmail.Lines.Text;
+        if FileExists(aArquivoAnexo) Then
+            ACBrMail1.AddAttachment(aArquivoAnexo,'');
+        //
+        if not uFuncoes.Empty(edtFileAnexo.Text) Then   // Arquivo anexo extra
+          if FileExists(edtFileAnexo.Text) Then
+               ACBrMail1.AddAttachment(edtFileAnexo.Text, 'Leia-me');
+        //
+        Try
+             ACBrMail1.Send;
+             // CriaListaEnviados(aNameFileOK, 'Email: '+dsListaEmails.DataSet.FieldByName('CDS_EMAIL_CLIENTE').AsString+'|OK');
+             Result := True;
+        Except
+              on e: exception do
+               begin
+                   dsListaEmails.DataSet.Edit;
+                   dsListaEmails.DataSet.FieldByName('CDS_MSG_ERRO').AsString :=  Copy(e.Message,1,240);
+                   dsListaEmails.DataSet.Post;
+                   //
+                   CriaListaEnviados(aNameFileErro, 'Email: '+dsListaEmails.DataSet.FieldByName('CDS_EMAIL_CLIENTE').AsString+'| Erro');
+               End;
+        End;
+     Finally
+          ACBrMail1.Free;
+          btnEnviar.Enabled := True;
+     End;
+     Application.ProcessMessages;
+end;
+
+procedure TFrmEnviarEmail.LogErroEnvio(aCds: TDataset);
+begin
+    With aCds do
+    begin
+         DisableControls;
+         First;
+         Try
+              While not (EOf) do
+              begin
+                  if not (FieldByName('CDS_ENVIADO').AsBoolean) Then
+                        CriaLog('Email: '+FieldByName('CDS_EMAIL_CLIENTE').AsString +'|Erro: '+ FieldByName('CDS_MSG_ERRO').AsString);
+                  //
+                  Next;
+              End;
+         Finally
+               EnableControls;
+         End;
+    End;
+end;
+
+procedure TFrmEnviarEmail.CriaLog(TextLog: String);
+var
+      Log: TextFile;
+      NomeDoLog: string;
+begin
+      NomeDoLog := 'log_email.txt';
+      AssignFile(Log,NomeDoLog);
+      Try
+          if FileExists(NomeDoLog) then
+              Append(Log) { se existir, apenas adiciona linhas }
+          else
+              Rewrite(Log); { cria um novo se não existir }
+
+          Writeln(Log,TextLog);
+      Finally
+          Closefile(Log);
+      End;
+end;
+
+procedure TFrmEnviarEmail.DBGrid1DrawColumnCell(Sender: TObject;
+  const Rect: TRect; DataCol: Integer; Column: TColumn;
+  State: TGridDrawState);
+begin
+      // Imagens
+      if Column.Field = dsListaEmails.DataSet.FieldByName('CDS_ENVIADO') then
+       begin
+            DBGrid1.Canvas.FillRect(Rect);
+            ImageList1.Draw(DBGrid1.Canvas,Rect.Left+10,Rect.Top+1,0);
+            if (dsListaEmails.DataSet.FieldByName('CDS_ENVIADO').AsBoolean) then
+                ImageList1.Draw(DBGrid1.Canvas,Rect.Left+10,Rect.Top+1,0)
+            else
+                ImageList1.Draw(DBGrid1.Canvas,Rect.Left+10,Rect.Top+1,1);
+       end;     // if Column.Field = dsConsulta.DataSet.FieldByName('DIGITALIZACAO') then
+end;
+
+procedure TFrmEnviarEmail.SpeedButton1Click(Sender: TObject);
+begin
+     if (OpenDialog1.Execute) Then
+         edtFileAnexo.Text := OpenDialog1.FileName;
+end;
+
+procedure TFrmEnviarEmail.CriaListaEnviados(aNomeFile, TextLog: String);
+var
+      Log: TextFile;
+begin
+      AssignFile(Log,aNomeFile);
+      Try
+          if FileExists(aNomeFile) then
+              Append(Log) { se existir, apenas adiciona linhas }
+          else
+              Rewrite(Log); { cria um novo se não existir }
+
+          Writeln(Log,TextLog);
+      Finally
+          Closefile(Log);
+      End;
 end;
 
 end.
