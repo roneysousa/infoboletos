@@ -184,11 +184,10 @@ object FrmMainBoletos: TFrmMainBoletos
       Height = 91
       Align = alRight
       Caption = '[ Carn'#234' Impress'#227'o ]'
-      ItemIndex = 2
+      ItemIndex = 1
       Items.Strings = (
         'Retrato'
-        'Paisagem'
-        'Individual')
+        'Paisagem')
       TabOrder = 6
     end
     object cmbContaBancaria: TComboBox

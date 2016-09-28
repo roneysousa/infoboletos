@@ -1,0 +1,140 @@
+unit uFrmLogin;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ExtCtrls, StdCtrls, Buttons, jpeg;
+
+type
+  TfrmLogin = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Label1: TLabel;
+    Label2: TLabel;
+    edtLogin: TEdit;
+    edtSenha: TEdit;
+    btnConfirma: TBitBtn;
+    btnCancelar: TBitBtn;
+    Image1: TImage;
+    Image2: TImage;
+    Label3: TLabel;
+    procedure btnCancelarClick(Sender: TObject);
+    procedure edtLoginKeyPress(Sender: TObject; var Key: Char);
+    procedure btnConfirmaClick(Sender: TObject);
+    procedure edtLoginExit(Sender: TObject);
+    procedure edtSenhaKeyPress(Sender: TObject; var Key: Char);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmLogin: TfrmLogin;
+
+implementation
+
+uses uFuncoes, untDMDados, DB, untMenu, ZDataset;  // uUsuario, uInfoTaxiMain,
+
+{$R *.dfm}
+
+procedure TfrmLogin.btnCancelarClick(Sender: TObject);
+begin
+     ModalResult := mrCancel;
+end;
+
+procedure TfrmLogin.edtLoginKeyPress(Sender: TObject; var Key: Char);
+begin
+    If not( key in['0'..'9',#8, #13] ) then
+        key:=#0;
+    //
+    If (key = #13) and not uFuncoes.Empty(edtLogin.Text) Then
+     begin
+          key := #0;
+          edtSenha.SetFocus;
+     End;
+end;
+
+procedure TfrmLogin.btnConfirmaClick(Sender: TObject);
+Var
+   aSenha, aSenhaTMP, aSenhaMD5 : String;
+   aSenhaDB : String;
+begin
+   if uFuncoes.Empty(edtLogin.Text) Then
+    begin
+         edtLogin.SetFocus;
+         Exit;
+    End;
+    //
+   if uFuncoes.Empty(edtSenha.Text) Then
+    begin
+         edtSenha.SetFocus;
+         Exit;
+    End;
+   //
+   untMenu.aCodUsuario   := '';
+   untMenu.aNomeUsuario  := '';
+   aSenhaDB    := '';
+
+   aSenhaTMP := FrmMainBoletos.MD5(uFuncoes.Alltrim(uFuncoes.StrZero(edtSenha.Text,15)));
+   //
+   With dmDados.ZQryUsuario do
+   begin
+        active := False;
+        Params[0].AsInteger := StrToInt(edtLogin.Text);
+        active := true;
+        //
+        if not (IsEmpty) Then
+        begin
+            untMenu.aCodUsuario  := uFuncoes.StrZero(FieldByName('id').AsString,3);
+            untMenu.aNomeUsuario := FieldByName('nome').AsString;
+            aSenhaDB             := uFuncoes.Alltrim(FieldByName('senha').AsString);
+            //
+            If (aSenhaTMP = aSenhaDB) Then
+             begin
+                  ModalResult :=  mrOK;
+             End
+             Else
+             begin
+                  Messagedlg('Senha digitada inválida!!!', mtError, [mbOK],0);
+                  edtSenha.SetFocus;
+                  edtSenha.Clear;
+                  Exit;
+             End;
+        End
+        Else
+        begin
+             Messagedlg('Nome de usuário não cadastrado!!!', mtWarning, [mbOK],0);
+             edtSenha.SetFocus;
+             edtSenha.Clear;
+             Exit;
+        End;
+   End;
+end;
+
+procedure TfrmLogin.edtLoginExit(Sender: TObject);
+begin
+    if not uFuncoes.Empty(edtLogin.Text) Then
+       if not (dmDados.ProcurarValor(edtLogin.Text, 'id', 'usuarios')) Then
+        begin
+             Messagedlg('Código de usuário não cadastrado.', mtWarning, [mbOK],0);
+             edtLogin.Clear;
+             edtLogin.SetFocus;
+             Exit;
+        End
+        Else
+            edtLogin.Text := uFuncoes.StrZero(edtLogin.Text,3);
+end;
+
+procedure TfrmLogin.edtSenhaKeyPress(Sender: TObject; var Key: Char);
+begin
+    //
+    If (key = #13) and not uFuncoes.Empty(edtSenha.Text) Then
+     begin
+          key := #0;
+          btnConfirma.SetFocus;
+     End;
+end;
+
+end.

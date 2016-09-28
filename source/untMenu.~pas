@@ -1053,6 +1053,8 @@ Var
     aMsg, aMsgMultaJuro : String;
     iContaBancaria : integer;
 begin
+   Application.ProcessMessages;
+   Sleep(1);
    if not FileExists('ConfigEmail.xml') then
      begin
            Application.MessageBox('Arquivo de configuração não encontrado.',

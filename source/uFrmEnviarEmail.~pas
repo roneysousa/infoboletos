@@ -138,6 +138,13 @@ begin
           //
           aNameFileOK   := 'envio_OK_'+uFuncoes.RemoveChar(DatetoStr(date))+'_'+uFuncoes.RemoveChar(Timetostr(time()))+'.txt';
           aNameFileErro := 'envio_Erro_'+uFuncoes.RemoveChar(DatetoStr(date))+'_'+uFuncoes.RemoveChar(Timetostr(time()))+'.txt';
+
+          if FileExists(aNameFileOK) Then
+             DeleteFile(aNameFileOK);
+          if FileExists(aNameFileErro) Then
+             DeleteFile(aNameFileErro);
+          //
+          Application.ProcessMessages;   
           //
           With dsListaEmails.DataSet do
           begin
@@ -161,7 +168,7 @@ begin
                             //
                             Sleep(10);
                        End;
-                    End;   
+                    End;
                     lblMensagem.Caption := 'Aguarde...';
                     Application.ProcessMessages;
                     //
@@ -174,12 +181,25 @@ begin
                //
                Application.ProcessMessages;
                If not (bErro) Then
-                    Application.MessageBox('Email(s) enviado(s) com sucesso.', 'Concluído', MB_OK + MB_ICONINFORMATION+ MB_APPLMODAL )
+               begin
+                    Application.MessageBox('Email(s) enviado(s) com sucesso.', 'Concluído', MB_OK + MB_ICONINFORMATION+ MB_APPLMODAL );
+                    Close;
+               End
                Else
-                    Application.MessageBox(Pchar('Enviou concluído, mas com erros!!!'), 'Concluído', MB_OK + MB_ICONWARNING+ MB_APPLMODAL );
+               begin
+                    Application.MessageBox(Pchar('Enviou concluído, mas com erros!!!'), 'ATENÇÃO', MB_OK + MB_ICONWARNING+ MB_APPLMODAL );
+                    //
+                    If Application.MessageBox('Deseja tentar novamente?',
+                         'ATENÇÃO', MB_YESNO+MB_ICONQUESTION+MB_DEFBUTTON2+MB_APPLMODAL) = idYes then
+                     Begin
+                          Sleep(100);
+                          btnEnviarClick(Self);
+                     End
+                    Else
+                         Close;
+               End;
           End;  // With dsListaEmails.DataSet do
-          //
-          Close;
+
      End;   // if not (dsListaEmails.DataSet.IsEmpty) Then
 {
   ProgressBar1.Position := 1;
@@ -413,7 +433,7 @@ begin
         //
         Try
              ACBrMail1.Send;
-             CriaListaEnviados(aNameFileOK, 'Email: '+dsListaEmails.DataSet.FieldByName('CDS_EMAIL_CLIENTE').AsString+'|OK');
+             // CriaListaEnviados(aNameFileOK, 'Email: '+dsListaEmails.DataSet.FieldByName('CDS_EMAIL_CLIENTE').AsString+'|OK');
              Result := True;
         Except
               on e: exception do

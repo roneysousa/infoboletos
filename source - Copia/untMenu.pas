@@ -305,14 +305,14 @@ begin
          //
          {dmDados.GerarBoleto(dsConsulta.DataSet.FieldByName('id').AsInteger,
                              iContaBancaria, 'V', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString);}
-        { If Application.MessageBox('Visualizar com verso do boleto?',
-            'ATENÇÃO', MB_YESNO+MB_ICONQUESTION+MB_DEFBUTTON2+MB_APPLMODAL) = idNo then   }
+         If Application.MessageBox('Visualizar com verso do boleto?',
+            'ATENÇÃO', MB_YESNO+MB_ICONQUESTION+MB_DEFBUTTON2+MB_APPLMODAL) = idNo then
               dmDados.GerarBoleto(dsConsulta.DataSet.FieldByName('id').AsInteger,
                              iContaBancaria, 'V', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, 'N')
-        { Else
+         Else
          begin
               dmDados.GerarBoleto(dsConsulta.DataSet.FieldByName('id').AsInteger,
-                             iContaBancaria, 'V', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, 'N');    }
+                             iContaBancaria, 'V', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, 'N');
              { Sleep(5);
               dmDados.ImprimirVerso(dsConsulta.DataSet.FieldByName('id').AsString, 'V');}
              {If ( dmDados.cdsConfigMODELO_TEXTO_BOLETO.AsInteger = 1) Then
@@ -321,7 +321,7 @@ begin
              Else
                  dmDados.GerarBoletoFrenteVersoDetalhe(dsConsulta.DataSet.FieldByName('id').AsInteger,
                             iContaBancaria, 'V', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, 'N');}
-         //End;
+         End;
        Finally
             Sleep(100);
             Habilita_Botoes(true);
@@ -334,7 +334,6 @@ procedure TFrmMainBoletos.actImprimirExecute(Sender: TObject);
 Var
    aMsg, aMsgMultaJuro, aFlVerso, aPrimImp : String;
    iCont, iContaBancaria : Integer;
-   bSomenteEmail : Boolean;
 begin
 //
    if (dsConsulta.DataSet.Active) and not (dsConsulta.DataSet.IsEmpty) Then
@@ -345,9 +344,9 @@ begin
           try
              aFlVerso := 'N';
              //
-             {If Application.MessageBox('Imprimir verso do boleto?',
-                'ATENÇÃO', MB_YESNO+MB_ICONQUESTION+MB_DEFBUTTON2+MB_APPLMODAL) = idYes then    }
-                   aFlVerso := 'S';
+             If Application.MessageBox('Imprimir verso do boleto?',
+                'ATENÇÃO', MB_YESNO+MB_ICONQUESTION+MB_DEFBUTTON2+MB_APPLMODAL) = idYes then
+                    aFlVerso := 'S';
             //
             With dsConsulta.DataSet do
             begin
@@ -365,48 +364,39 @@ begin
                  iCont := 1;
                  While not (Eof) do
                  begin
-                     bSomenteEmail := false;
-                     // Verifica se o cliente é só por email o recebimento do boleto
-                     bSomenteEmail :=  dmDados.VerificaSomenteEmailCliente(dsConsulta.DataSet.FieldByName('id').AsInteger);
-
-                     if not (bSomenteEmail) Then
+                      iContaBancaria := dmDados.GetIdContaBanco(dsConsulta.DataSet.FieldByName('id').AsInteger);
+                     if (iContaBancaria <> 0) Then
                      begin
-                          iContaBancaria := dmDados.GetIdContaBanco(dsConsulta.DataSet.FieldByName('id').AsInteger);
-                          //
-                          if (iContaBancaria <> 0) Then
-                          begin
-                              //Raise Exception.Create('Não há contrato definido nesse registro de conta a receber!!!');
-                           //
-                           {If (aFlVerso = 'S') then
-                           begin    }
-                                if (iCont = 1) Then
-                                    aPrimImp := 'S'
-                                Else
-                                    aPrimImp := 'N';
-                                //
-                                dmDados.GerarBoleto(dsConsulta.DataSet.FieldByName('id').AsInteger,
-                                     iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, aPrimImp);
-
-                               { Sleep(5);
-                                dmDados.ImprimirVerso(dsConsulta.DataSet.FieldByName('id').AsString, 'I');}
-                                //
-                                {If ( dmDados.cdsConfigMODELO_TEXTO_BOLETO.AsInteger = 1) Then
-                                       dmDados.GerarBoletoFrenteVerso(dsConsulta.DataSet.FieldByName('id').AsInteger,
-                                           iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, aPrimImp)
-                                 Else
-                                       dmDados.GerarBoletoFrenteVersoDetalhe(dsConsulta.DataSet.FieldByName('id').AsInteger,
-                                           iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, aPrimImp)}
-                           //
-                          { End
+                         //Raise Exception.Create('Não há contrato definido nesse registro de conta a receber!!!');
+                      //
+                      If (aFlVerso = 'S') then
+                      begin
+                           if (iCont = 1) Then
+                               aPrimImp := 'S'
                            Else
-                                dmDados.GerarBoleto(dsConsulta.DataSet.FieldByName('id').AsInteger,
-                                iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, 'N'); }
+                               aPrimImp := 'N';
                            //
+                           dmDados.GerarBoleto(dsConsulta.DataSet.FieldByName('id').AsInteger,
+                                iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, aPrimImp);
 
-                           iCont := iCont + 1;
-                           Sleep(500);
-                          End;     //  if (iContaBancaria <> 0) Then
-                     End;        //  if not (bSomenteEmail) Then
+                          { Sleep(5);
+                           dmDados.ImprimirVerso(dsConsulta.DataSet.FieldByName('id').AsString, 'I');}
+                           //
+                           {If ( dmDados.cdsConfigMODELO_TEXTO_BOLETO.AsInteger = 1) Then
+                                  dmDados.GerarBoletoFrenteVerso(dsConsulta.DataSet.FieldByName('id').AsInteger,
+                                      iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, aPrimImp)
+                            Else
+                                  dmDados.GerarBoletoFrenteVersoDetalhe(dsConsulta.DataSet.FieldByName('id').AsInteger,
+                                      iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, aPrimImp)}
+                      //
+                      End
+                      Else
+                           dmDados.GerarBoleto(dsConsulta.DataSet.FieldByName('id').AsInteger,
+                                iContaBancaria, 'I', aMsg, aMsgMultaJuro, dsConsulta.DataSet.FieldByName('email').AsString, 'N');
+                      //
+                      iCont := iCont + 1;
+                      Sleep(500);
+                     End;
                      //
                      Application.ProcessMessages;
                       Next;
@@ -1053,8 +1043,6 @@ Var
     aMsg, aMsgMultaJuro : String;
     iContaBancaria : integer;
 begin
-   Application.ProcessMessages;
-   Sleep(1);
    if not FileExists('ConfigEmail.xml') then
      begin
            Application.MessageBox('Arquivo de configuração não encontrado.',
